@@ -1,0 +1,249 @@
+{
+  "Food & Dining": {
+    "subcategories": [
+      "Restaurants",
+      "Groceries",
+      "Coffee Shops",
+      "Fast Food",
+      "Food Delivery"
+    ],
+    "keywords": [
+      "restaurant",
+      "cafe",
+      "starbucks",
+      "mcdonalds",
+      "uber eats",
+      "doordash",
+      "grocery",
+      "safeway",
+      "walmart",
+      "costco",
+      "trader joe",
+      "whole foods",
+      "chipotle",
+      "subway",
+      "pizza",
+      "tim hortons",
+      "dunkin"
+    ]
+  },
+  "Transportation": {
+    "subcategories": [
+      "Rideshare",
+      "Gas & Fuel",
+      "Public Transit",
+      "Parking",
+      "Car Maintenance"
+    ],
+    "keywords": [
+      "uber",
+      "lyft",
+      "gas",
+      "shell",
+      "chevron",
+      "exxon",
+      "transit",
+      "metro",
+      "bus",
+      "parking",
+      "parkade",
+      "autozone",
+      "jiffy lube"
+    ]
+  },
+  "Shopping": {
+    "subcategories": [
+      "Amazon",
+      "Clothing",
+      "Electronics",
+      "Department Stores",
+      "Home & Garden"
+    ],
+    "keywords": [
+      "amazon",
+      "amzn",
+      "walmart",
+      "target",
+      "best buy",
+      "apple",
+      "nike",
+      "zara",
+      "h&m",
+      "nordstrom",
+      "home depot",
+      "ikea"
+    ]
+  },
+  "Bills & Utilities": {
+    "subcategories": [
+      "Electricity",
+      "Internet",
+      "Phone",
+      "Water",
+      "Insurance"
+    ],
+    "keywords": [
+      "hydro",
+      "electric",
+      "pg&e",
+      "comcast",
+      "xfinity",
+      "rogers",
+      "telus",
+      "att",
+      "verizon",
+      "t-mobile",
+      "insurance",
+      "geico"
+    ]
+  },
+  "Subscriptions": {
+    "subcategories": [
+      "Streaming",
+      "Software",
+      "Gym",
+      "Cloud Storage",
+      "News"
+    ],
+    "keywords": [
+      "netflix",
+      "spotify",
+      "apple music",
+      "hulu",
+      "disney",
+      "hbo",
+      "adobe",
+      "microsoft",
+      "dropbox",
+      "gym",
+      "fitness",
+      "nyt"
+    ]
+  },
+  "Entertainment": {
+    "subcategories": [
+      "Movies",
+      "Concerts",
+      "Sports",
+      "Games",
+      "Hobbies"
+    ],
+    "keywords": [
+      "cinema",
+      "amc",
+      "ticketmaster",
+      "stubhub",
+      "concert",
+      "sports",
+      "game",
+      "bowling",
+      "golf",
+      "museum"
+    ]
+  },
+  "Health & Wellness": {
+    "subcategories": [
+      "Pharmacy",
+      "Doctor",
+      "Dentist",
+      "Vision",
+      "Fitness"
+    ],
+    "keywords": [
+      "pharmacy",
+      "cvs",
+      "walgreens",
+      "doctor",
+      "medical",
+      "clinic",
+      "hospital",
+      "dentist",
+      "optometrist"
+    ]
+  },
+  "Travel": {
+    "subcategories": [
+      "Flights",
+      "Hotels",
+      "Car Rental",
+      "Vacation"
+    ],
+    "keywords": [
+      "airline",
+      "united",
+      "delta",
+      "air canada",
+      "westjet",
+      "hotel",
+      "marriott",
+      "hilton",
+      "airbnb",
+      "expedia"
+    ]
+  },
+  "Education": {
+    "subcategories": [
+      "Tuition",
+      "Books",
+      "Courses",
+      "Supplies"
+    ],
+    "keywords": [
+      "university",
+      "college",
+      "tuition",
+      "coursera",
+      "udemy",
+      "textbook",
+      "school",
+      "education"
+    ]
+  },
+  "Personal Care": {
+    "subcategories": [
+      "Haircut",
+      "Spa",
+      "Cosmetics"
+    ],
+    "keywords": [
+      "salon",
+      "haircut",
+      "barber",
+      "spa",
+      "sephora",
+      "ulta"
+    ]
+  },
+  "Financial": {
+    "subcategories": [
+      "Bank Fees",
+      "ATM",
+      "Investment",
+      "Loan Payment"
+    ],
+    "keywords": [
+      "bank fee",
+      "atm",
+      "withdrawal",
+      "transfer",
+      "investment",
+      "loan"
+    ]
+  },
+  "Income": {
+    "subcategories": [
+      "Salary",
+      "Freelance",
+      "Refund",
+      "Interest"
+    ],
+    "keywords": [
+      "payroll",
+      "salary",
+      "direct deposit",
+      "freelance",
+      "refund",
+      "interest"
+    ]
+  }
+}

@@ -1,0 +1,3 @@
+# Large model files (exceed GitHub 100MB limit)
+models/classifier_model/model.pt
+*.pt

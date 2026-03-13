@@ -1,7 +1,7 @@
 """
 Spending Forecaster Module - SpendWise AI
 ZICATT: Zero-Inflated Cross-Attention Temporal Transformer
-Produced by: 05v2_zicatt_forecaster.ipynb
+Produced by: 05_spending_forecaster.ipynb
 """
 
 import math

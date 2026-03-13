@@ -96,8 +96,8 @@ Anomalous spending:
 Reconstruction Error: HIGH (500 vs 55) → ANOMALY DETECTED
 Key insight: VAE learns to compress and reconstruct "normal." Anything it can't reconstruct well = abnormal.
 
-Component 4: Spending Forecaster (Transformer)
-What it does: Past 6 months → "Next month you'll spend ~$2,400"
+Component 4: Spending Forecaster (ZICATT – Zero-Inflated Cross-Attention Transformer)
+What it does: Past 6 months → "Next month you'll spend ~$2,400" (per category + total, with uncertainty).
 Why Transformer for time-series?
 Traditional methods (ARIMA) assume patterns are linear and stationary. Real spending isn't—you spend more in December (holidays), less in January (recovery).
 How it works:
@@ -339,68 +339,9 @@ src/anomaly_detector.py → Production VAE and AnomalyDetector (matches notebook
 **Outcomes when you run:** Loaded **122,754** transactions; **12** categories; **2,600** samples (user-weeks), **11** features. Train **2,080**, Val **520**; input dimension **11**. VAE: **12,971** parameters. Training: 50 epochs; final train loss **0.4451**, val **0.4508**, recon **0.1902**. Reconstruction error: min **0.0285**, max **0.6462**, mean **0.1840**, std **0.0890**. Threshold (95th %ile) **0.3546**; **130 (5.0%)** flagged. Synthetic anomalies detection rate **16%**. Detector test: normal vs anomaly cases with score and top categories. Model saved to models/anomaly_model/; "Module saved to src/anomaly_detector.py"; summary "detection rate on synthetic anomalies: 16%".
 
 
-*** Notebook 05 – Spending Forecaster (Transformer) ***
+*** Notebook 05 – Spending Forecaster (ZICATT) ***
 
-1. **Imports & Setup**  
-   Same pattern: torch, sklearn, pandas, set_seed, device, PROJECT_ROOT (robust), (PROJECT_ROOT / "models" / "forecaster_model").mkdir.
-
-2. **Prepare Time-Series Data**  
-   Load transactions_full.csv; define create_weekly_totals() (weekly total per user); print weekly_totals and statistics.
-
-3. **Create Sequences**  
-   LOOKBACK=8, HORIZON=1; create_sequences() sliding windows per user; X (samples, lookback), y (samples).
-
-4. **Normalize Data & Split**  
-   StandardScaler for X and y; 70/15/15 train/val/test split (shuffled indices).
-
-5. **PyTorch Dataset**  
-   TimeSeriesDataset(X, y) returns (x.unsqueeze(-1), y); DataLoaders.
-
-6. **Positional Encoding**  
-   PositionalEncoding(d_model, max_len, dropout): sin/cos; register_buffer pe.
-
-7. **Build Transformer Forecaster**  
-   SpendingForecaster: input_embedding, pos_encoder, TransformerEncoder, fc_out; forward: embed, pos, encoder, mean(dim=1), fc_out.
-
-8. **Training Configuration**  
-   LR 1e-3, 50 epochs, Adam, ReduceLROnPlateau(mode="min", factor=0.5, patience=5) — no `verbose` (removed in PyTorch 2.x), MSELoss.
-
-9. **Training Functions**  
-   train_epoch (clip_grad_norm 1.0), evaluate (returns loss, predictions, targets).
-
-10. **Train the Model**  
-    Loop; save best_model_state by val loss; scheduler.step(val_loss).
-
-11. **Visualize Training**  
-    Plot train/val loss; save training_history.png.
-
-12. **Evaluate on Test Set**  
-    Load best; preds/targets inverse transform; MAE, RMSE, MAPE.
-
-13. **Visualize Predictions**  
-    Scatter actual vs predicted; line plot; save predictions.png.
-
-14. **Build Forecaster Class**  
-    SpendingForecasterInference(model_path=None): load from checkpoint or use in-memory model/scalers/lookback; predict(history) returns predicted_spending, lower_bound, upper_bound.
-
-15. **Test the Forecaster**  
-    Four test cases (steady, increasing, decreasing, variable); print predicted and range.
-
-16. **Save Model**  
-    torch.save model_state_dict, config, scaler_X/y mean/std, metrics to models/forecaster_model/model.pt.
-
-17. **Save Module**  
-    src/spending_forecaster.py (PositionalEncoding, SpendingForecaster, SpendingForecasterInference); notebook prints "Module saved to src/spending_forecaster.py".
-
-Key outputs from Notebook 05:
-
-models/forecaster_model/model.pt, training_history.png, predictions.png
-src/spending_forecaster.py → Production forecaster (SpendingForecasterInference)
-
-**Outcomes when you run:** Loaded **122,754** transactions. Weekly totals: **2,600** records, **100** users, **26** weeks; spending stats Mean **$5,817.97**, Std **$3,175.47**, Min **$428.64**, Max **$21,275.87**. Sequences: X shape **(1,800, 8)**, y shape **(1,800)**; data split Train **1,260**, Val **270**, Test **270**. Forecaster: d_model 64, 4 heads, 2 layers; **69,185** total parameters. Training: 50 epochs; best val loss **0.7398**. Test: **MAE $1,768.01**, **RMSE $2,210.00**, **MAPE 43.94%**. Inference: Steady spender predicted **$2,604.31** (range $2,343.88–$2,864.74); Increasing trend **$2,605.79**; Decreasing trend **$2,802.55**; Variable spender **$2,669.67**. Model saved to `models/forecaster_model`; "Module saved to src/spending_forecaster.py`; summary cell at end.
-
-
-*** Notebook 05v2 – ZICATT Category Forecaster (Zero-Inflated Cross-Attention Transformer) ***
+The forecaster notebook is **05_spending_forecaster.ipynb**. It contains the ZICATT (Zero-Inflated Cross-Attention Temporal Transformer) model. The earlier simple transformer forecaster (weekly totals only) was replaced by ZICATT; the dashboard and app use ZICATT only.
 
 1. **Imports & Setup**  
    Same base stack (torch, sklearn, pandas, numpy, matplotlib) plus a custom `ZeroInflatedGaussianNLLLoss`. Sets `device`, robust `PROJECT_ROOT` (falls back to the real repo if `data/` is missing), and `SAVE_DIR = models/forecaster_model`. Prints the active device and resolved project root.
@@ -453,9 +394,13 @@ src/spending_forecaster.py → Production forecaster (SpendingForecasterInferenc
 17. **Save Production Module (spending_forecaster.py v2)**  
     Final cell writes a clean `src/spending_forecaster.py` containing `PositionalEncoding`, `TemporalEncoder`, `CrossCategoryAttention`, `ZICATT`, and `ZICATTInference` (with the simple-total fallback). It asserts the file exists and prints the module path and file size.
 
-Key outputs from Notebook 05v2:
+Key outputs from Notebook 05:
 
-- `models/forecaster_model/model.pt` → ZICATT checkpoint (per-category gate + amount + uncertainty)\n- `models/forecaster_model/training_history_zicatt.png` → Training/validation loss curves (total, gate, amount)\n- `models/forecaster_model/predictions_zicatt.png` → Per-category actual vs predicted plots\n- `models/forecaster_model/uncertainty_zicatt.png` → Average uncertainty per category\n- `src/spending_forecaster.py` → Production forecaster module (ZICATT + ZICATTInference)
+- `models/forecaster_model/model.pt` → ZICATT checkpoint (per-category gate + amount + uncertainty)
+- `models/forecaster_model/training_history_zicatt.png` → Training/validation loss curves (total, gate, amount)
+- `models/forecaster_model/predictions_zicatt.png` → Per-category actual vs predicted plots
+- `models/forecaster_model/uncertainty_zicatt.png` → Average uncertainty per category
+- `src/spending_forecaster.py` → Production forecaster module (ZICATT + ZICATTInference)
 
 **Outcomes when you run:** Builds a per-user category-week matrix and sliding-window sequences **(1,800, 8, 11)** with ~**10.9%** zero targets. Train/val/test split **1,260 / 270 / 270**. ZICATT has **141,059** trainable parameters with temporal + cross-category attention. Training converges with early stopping; training history is saved. On the test set, gate accuracy is **88.3%** overall, with very high accuracy for stable categories (Food & Dining, Transportation) and lower for volatile ones (Travel, Education). Total-spend metrics: **MAE ≈ $1.7K**, **RMSE ≈ $2.2K**, **MAPE ≈ 39%**. The 95% prediction interval covers **94.5%** of actual category spends, showing well-calibrated uncertainty. Inference demo produces a realistic per-category breakdown and a one-week total forecast around **$5.6K**. The model checkpoint and upgraded `src/spending_forecaster.py` are ready for use by the API and Streamlit app.
 

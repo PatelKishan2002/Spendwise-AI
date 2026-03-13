@@ -116,27 +116,23 @@ Single place to see **what each file produces**: outputs, metrics, and artifacts
 
 ## File 5: `05_spending_forecaster.ipynb`
 
-**Purpose:** Predict future spending using a Transformer-based time-series model (custom encoder, trained from scratch).
+**Purpose:** Predict future spending (per category + total, with uncertainty) using ZICATT (Zero-Inflated Cross-Attention Temporal Transformer). The dashboard and app use this model only.
 
 **Key outputs (files created/updated):**
 
 | Path | Description |
 |------|-------------|
-| `models/forecaster_model/model.pt` | Model state, config, scalers, metrics |
-| `models/forecaster_model/training_history.png` | Train/val MSE loss |
-| `models/forecaster_model/predictions.png` | Actual vs predicted, line comparison |
-| `src/spending_forecaster.py` | PositionalEncoding, SpendingForecaster, SpendingForecasterInference |
-
-**Notebook updates:** ReduceLROnPlateau used without `verbose` (removed in PyTorch 2.x). Production module in `src/spending_forecaster.py`; notebook prints "Module saved to src/spending_forecaster.py".
+| `models/forecaster_model/model.pt` | ZICATT checkpoint (state, config, scalers, categories, metrics) |
+| `models/forecaster_model/training_history_zicatt.png` | Train/val loss curves (total, gate, amount) |
+| `models/forecaster_model/predictions_zicatt.png` | Per-category actual vs predicted |
+| `models/forecaster_model/uncertainty_zicatt.png` | Average uncertainty per category |
+| `src/spending_forecaster.py` | ZICATT, ZICATTInference (production) |
 
 **Actual run results:**
-- Loaded **122,754** transactions; weekly totals **2,600** records, **100** users, **26** weeks; spending Mean **$5,817.97**, Std **$3,175.47**, Min **$428.64**, Max **$21,275.87**
-- Sequences: X **(1,800, 8)**, y **(1,800)**; split Train **1,260**, Val **270**, Test **270**
-- Forecaster: d_model 64, 4 heads, 2 layers; **69,185** parameters
-- Training: 50 epochs; best val loss **0.7398**
-- Test: **MAE $1,768.01**, **RMSE $2,210.00**, **MAPE 43.94%**
-- Inference: Steady spender **$2,604.31** ($2,343.88–$2,864.74); Increasing **$2,605.79**; Decreasing **$2,802.55**; Variable **$2,669.67**
-- Model saved to `models/forecaster_model`; "Module saved to src/spending_forecaster.py"
+- Per-user category-week matrix; sequences **(1,800, 8, 11)** with ~**10.9%** zero targets; split Train **1,260**, Val **270**, Test **270**
+- ZICATT: **141,059** parameters; temporal + cross-category attention; early stopping
+- Gate accuracy **88.3%**; total MAE ≈ **$1.7K**, RMSE ≈ **$2.2K**, MAPE ≈ **39%**; 95% interval coverage **94.5%**
+- Inference: per-category breakdown; one-week total forecast ~**$5.6K**; model and `src/spending_forecaster.py` used by API and Streamlit app
 
 ---
 

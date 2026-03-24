@@ -1,8 +1,4 @@
-"""
-Spending Forecaster Module - SpendWise AI
-ZICATT: Zero-Inflated Cross-Attention Temporal Transformer
-Produced by: 05_spending_forecaster.ipynb
-"""
+"""ZICATT forecaster inference (multi-category weekly series)."""
 
 import math
 import numpy as np
@@ -11,7 +7,6 @@ import torch.nn as nn
 
 
 class PositionalEncoding(nn.Module):
-    """Add position information to sequences using sine/cosine functions."""
 
     def __init__(self, d_model, max_len=100, dropout=0.1):
         super().__init__()
@@ -30,7 +25,6 @@ class PositionalEncoding(nn.Module):
 
 
 class TemporalEncoder(nn.Module):
-    """Process each category's time-series independently using self-attention."""
 
     def __init__(self, d_model, nhead, num_layers, dim_ff, dropout, max_len):
         super().__init__()
@@ -49,7 +43,6 @@ class TemporalEncoder(nn.Module):
 
 
 class CrossCategoryAttention(nn.Module):
-    """Let categories attend to each other to learn correlations."""
 
     def __init__(self, d_model, nhead, num_layers, dim_ff, dropout):
         super().__init__()
@@ -65,14 +58,6 @@ class CrossCategoryAttention(nn.Module):
 
 
 class ZICATT(nn.Module):
-    """
-    Zero-Inflated Cross-Attention Temporal Transformer
-
-    Predicts per-category:
-    - gate: probability of any spending (0-1)
-    - mu: expected spending amount
-    - logvar: log-variance (uncertainty)
-    """
 
     def __init__(
         self,
@@ -151,7 +136,6 @@ class ZICATT(nn.Module):
 
 
 class ZICATTInference:
-    """Production-ready ZICATT forecaster."""
 
     def __init__(self, model_path=None):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -182,15 +166,6 @@ class ZICATTInference:
         self.model.eval()
 
     def predict(self, spending_history):
-        """
-        Args:
-            spending_history: dict of {category: [week1, week2, ...]} 
-                              OR numpy array (lookback, num_categories)
-                              OR simple list of weekly totals (backward compatible)
-
-        Returns:
-            dict with per-category predictions and totals
-        """
         if isinstance(spending_history, dict):
             matrix = np.zeros((self.lookback, len(self.categories)))
             for i, cat in enumerate(self.categories):
@@ -260,3 +235,7 @@ class ZICATTInference:
             'lower_bound': round(max(0, total_lower), 2),
             'upper_bound': round(total_upper, 2),
         }
+
+
+# Backward compatibility alias
+SpendingForecasterInference = ZICATTInference

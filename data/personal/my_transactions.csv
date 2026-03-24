@@ -6,3 +6,4 @@ date,user_id,merchant,amount,category,subcategory
 2026-02-27,personal_user,salary,1000.0,Income,Salary
 2025-02-18,personal_user,Costco Wholesale,-177.27,Shopping,General
 2020-09-21,personal_user,Walmart,-46.42,Shopping,General
+2026-03-08,personal_user,Save-On-Foods,-8.98,Food & Dining,Restaurants

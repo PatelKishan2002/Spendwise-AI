@@ -182,7 +182,8 @@ Single place to see **what each file produces**: outputs, metrics, and artifacts
 
 | Path | Description |
 |------|-------------|
-| `app/streamlit_app.py` | Streamlit dashboard (Dashboard, Transactions, Insights, AI Assistant, Receipt Scanner) |
+| `app/streamlit_app.py` | Streamlit ML Showcase (Dashboard, Transactions, Analytics, Insights, AI Assistant, Receipt Scanner) + sidebar **Mode** handoff to `personal_account.py` |
+| `app/personal_account.py` | My Account: login, My Dashboard, Add Expense, My Transactions, My Assistant, My Insights |
 | `requirements.txt` | Python dependencies |
 | `README.md` | Project overview and quick start |
 | `PROJECT_REPORT.txt` | Completion report (components, files) |

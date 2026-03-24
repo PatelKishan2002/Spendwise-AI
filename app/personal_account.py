@@ -1,9 +1,4 @@
-"""
-SpendWise AI - Personal Account Module
-=======================================
-Personal finance tracker with login, expense entry, and AI insights.
-All data stored in CSV (no database needed).
-"""
+"""Personal account Streamlit flow: CSV storage, receipts, assistant."""
 
 import os
 import sys
@@ -25,14 +20,10 @@ import plotly.graph_objects as go
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
-# ============================================================
-# CONFIGURATION
-# ============================================================
 PERSONAL_DATA_DIR = PROJECT_ROOT / "data" / "personal"
 PERSONAL_CSV = PERSONAL_DATA_DIR / "my_transactions.csv"
 USER_ID = "personal_user"
 
-# Hardcoded credentials — change these to your own
 CREDENTIALS = {
     "username": "kishan",
     "password": "spendwise2026"
@@ -60,11 +51,7 @@ SUBCATEGORIES = {
 }
 
 
-# ============================================================
-# DATA MANAGEMENT
-# ============================================================
 def init_personal_data():
-    """Create personal data directory and CSV if they don't exist."""
     PERSONAL_DATA_DIR.mkdir(parents=True, exist_ok=True)
     if not PERSONAL_CSV.exists():
         df = pd.DataFrame(columns=[
@@ -74,7 +61,6 @@ def init_personal_data():
 
 
 def load_personal_transactions():
-    """Load personal transactions."""
     init_personal_data()
     try:
         df = pd.read_csv(PERSONAL_CSV)
@@ -90,7 +76,6 @@ def load_personal_transactions():
 
 
 def add_transaction(merchant, amount, category, subcategory, date=None):
-    """Add a transaction to personal CSV."""
     init_personal_data()
     if date is None:
         date = datetime.now().strftime("%Y-%m-%d")
@@ -115,9 +100,6 @@ def add_transaction(merchant, amount, category, subcategory, date=None):
     return True
 
 
-# ============================================================
-# ML MODEL LOADERS (reuse from main app cache)
-# ============================================================
 @st.cache_resource
 def _load_classifier():
     try:
@@ -149,38 +131,22 @@ def _load_forecaster():
 
 
 def _parse_price(raw: str) -> float:
-    """Parse price string from Donut OCR output.
-    
-    Handles formats like:
-    - "$18.99" → 18.99
-    - "18,99" → 18.99  (comma as decimal)
-    - "18.99" → 18.99
-    - "1,234.56" → 1234.56  (comma as thousands)
-    - "07:42PM" → 0  (not a price)
-    - "0029" → 0  (not a price)
-    """
     s = raw.strip().replace("$", "").replace(" ", "")
-    
-    # Skip obvious non-prices
+
     if not s or any(c in s for c in [":", "AM", "PM", "am", "pm"]):
         return 0.0
-    
-    # Handle comma as decimal separator or thousands separator
+
     if "," in s and "." not in s:
         parts = s.split(",")
         if len(parts) == 2 and len(parts[1]) == 2:
-            # "18,99" → decimal separator
             s = s.replace(",", ".")
         else:
-            # "1,234" → thousands separator
             s = s.replace(",", "")
     elif "," in s and "." in s:
-        # "1,234.56" → remove comma (thousands separator)
         s = s.replace(",", "")
     
     try:
         val = float(s)
-        # Sanity check: receipt prices are typically $0.50 - $500
         if val < 0.01 or val > 5000:
             return 0.0
         return round(val, 2)
@@ -195,7 +161,6 @@ def _render_receipt_entry_form(
     default_merchant: str = "",
     default_date: datetime | None = None,
 ):
-    """Render the receipt entry form (used for both OCR success and manual fallback)."""
     if default_date is None:
         default_date = datetime.now()
 
@@ -215,8 +180,7 @@ def _render_receipt_entry_form(
     )
     
     tx_date = st.date_input("Date", value=default_date, key=f"{key_prefix}_receipt_date")
-    
-    # Auto-classify
+
     classifier = _load_classifier()
     auto_cat = "Food & Dining"
     auto_subcat = "Restaurants"
@@ -254,11 +218,7 @@ def _render_receipt_entry_form(
         st.caption("Enter an amount greater than $0 to enable the Add button.")
 
 
-# ============================================================
-# LOGIN
-# ============================================================
 def render_login():
-    """Render login screen. Returns True if logged in."""
     if st.session_state.get("logged_in", False):
         return True
 
@@ -278,7 +238,7 @@ def render_login():
         username = st.text_input("Username", placeholder="Enter username")
         password = st.text_input("Password", type="password", placeholder="Enter password")
 
-        if st.button("Sign In", type="primary", width="stretch"):
+        if st.button("Sign In", type="primary"):
             if username == CREDENTIALS["username"] and password == CREDENTIALS["password"]:
                 st.session_state["logged_in"] = True
                 st.session_state["username"] = username
@@ -295,11 +255,7 @@ def render_login():
     return False
 
 
-# ============================================================
-# PERSONAL DASHBOARD
-# ============================================================
 def render_personal_dashboard():
-    """Personal financial dashboard."""
     st.title("My Dashboard")
 
     df = load_personal_transactions()
@@ -317,7 +273,6 @@ def render_personal_dashboard():
     net = total_income - total_expenses
     tx_count = len(df)
 
-    # Metrics
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total Expenses", f"${total_expenses:,.2f}")
     c2.metric("Total Income", f"${total_income:,.2f}")
@@ -337,7 +292,7 @@ def render_personal_dashboard():
                 color_discrete_sequence=px.colors.qualitative.Set3,
             )
             fig.update_layout(margin=dict(t=20, b=20, l=20, r=20))
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
 
         with col2:
             st.subheader("Spending Over Time")
@@ -351,9 +306,8 @@ def render_personal_dashboard():
                 xaxis_title="Date", yaxis_title="Spending ($)",
                 margin=dict(t=20, b=20, l=20, r=20),
             )
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
 
-    # Recent transactions
     st.subheader("Recent Transactions")
     recent = df.sort_values("date", ascending=False).head(10).copy()
     recent["date"] = recent["date"].dt.strftime("%Y-%m-%d")
@@ -362,13 +316,12 @@ def render_personal_dashboard():
     )
     st.dataframe(
         recent[["date", "merchant", "amount", "category", "subcategory"]],
-        width="stretch", hide_index=True,
+        use_container_width=True,
+        hide_index=True,
     )
 
 
 def _parse_receipt_with_claude(image_bytes: bytes) -> tuple[dict | None, str | None]:
-    """Parse receipt using Claude Vision API.
-    Returns (result_dict, error_message). Error is None on success."""
     try:
         import anthropic
         import base64
@@ -382,7 +335,6 @@ def _parse_receipt_with_claude(image_bytes: bytes) -> tuple[dict | None, str | N
     client = anthropic.Anthropic(api_key=api_key)
     b64_image = base64.b64encode(image_bytes).decode("utf-8")
 
-    # Detect mime type
     if image_bytes[:3] == b'\xff\xd8\xff':
         media_type = "image/jpeg"
     elif image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
@@ -441,17 +393,12 @@ Rules:
         return None, str(e)
 
 
-# ============================================================
-# ADD EXPENSE — THREE METHODS
-# ============================================================
 def render_add_expense():
-    """Three ways to add expenses."""
     st.title("Add Expense")
     st.markdown("Choose how to add your transaction:")
 
     tab1, tab2, tab3 = st.tabs(["Scan Receipt", "Quick Text", "Manual Entry"])
 
-    # ---- TAB 1: Receipt Upload ----
     with tab1:
         st.markdown("Upload a receipt photo — AI extracts items and auto-classifies.")
 
@@ -468,18 +415,14 @@ def render_add_expense():
                 parse_method = None
 
                 with st.spinner("🔍 Scanning receipt with AI..."):
-
-                    # Method 1: Try Claude Vision first (best quality)
                     claude_result, claude_error = _parse_receipt_with_claude(image_bytes)
 
                     if claude_result and claude_result.get("items"):
                         parsed_data = claude_result
                         parse_method = "claude"
                     elif claude_error:
-                        # Store error to show user why Claude Vision failed
                         st.session_state["_claude_vision_error"] = claude_error
                     else:
-                        # Method 2: Fall back to Donut OCR
                         worker = PROJECT_ROOT / "app" / "parse_receipt_worker.py"
                         if worker.exists():
                             with tempfile.NamedTemporaryFile(
@@ -512,7 +455,6 @@ def render_add_expense():
                             except Exception:
                                 pass
 
-                # --- Process results ---
                 if parsed_data and parse_method == "claude":
                     st.success("✅ Parsed with Claude Vision AI")
 
@@ -544,7 +486,6 @@ def render_add_expense():
                         total = subtotal + tax
                         st.success(f"**Total: ${total:.2f}**")
 
-                    # Parse date
                     default_date = datetime.now()
                     if receipt_date:
                         try:
@@ -621,7 +562,6 @@ def render_add_expense():
                     st.warning("Could not read this receipt. Enter details manually:")
                     _render_receipt_entry_form([], 0, "manual_fallback")
 
-    # ---- TAB 2: Quick Text ----
     with tab2:
         st.markdown("Type a transaction description — AI auto-classifies it.")
         st.markdown("*Examples: `STARBUCKS $5.75`, `UBER TRIP $12.50`, `Salary deposit`*")
@@ -654,7 +594,6 @@ def render_add_expense():
                 st.success(f"Added: {merchant} — ${amount_input:.2f} ({category})")
                 st.balloons()
 
-    # ---- TAB 3: Manual Form ----
     with tab3:
         st.markdown("Enter transaction details manually.")
 
@@ -673,11 +612,7 @@ def render_add_expense():
             st.balloons()
 
 
-# ============================================================
-# MY TRANSACTIONS
-# ============================================================
 def render_my_transactions():
-    """View and manage personal transactions."""
     st.title("My Transactions")
 
     df = load_personal_transactions()
@@ -686,7 +621,6 @@ def render_my_transactions():
         st.info("No transactions yet. Go to **Add Expense** to start!")
         return
 
-    # Filters
     c1, c2, c3 = st.columns(3)
     with c1:
         cats = ["All"] + sorted(df["category"].unique().tolist())
@@ -713,7 +647,6 @@ def render_my_transactions():
     else:
         filtered = filtered.sort_values("amount", key=abs, ascending=True)
 
-    # Stats
     c1, c2, c3 = st.columns(3)
     c1.metric("Total", len(filtered))
     c2.metric("Expenses", f"${filtered[filtered['amount'] < 0]['amount'].abs().sum():,.2f}")
@@ -726,9 +659,8 @@ def render_my_transactions():
     display["amount"] = display["amount"].apply(
         lambda x: f"{'+' if x > 0 else '-'} ${abs(x):,.2f}"
     )
-    st.dataframe(display, width="stretch", hide_index=True)
+    st.dataframe(display, use_container_width=True, hide_index=True)
 
-    # Delete all option
     st.markdown("---")
     with st.expander("Danger Zone"):
         if st.button("Delete ALL My Transactions", type="secondary"):
@@ -738,11 +670,7 @@ def render_my_transactions():
             st.rerun()
 
 
-# ============================================================
-# MY AI ASSISTANT
-# ============================================================
 def render_my_assistant():
-    """AI assistant on personal data."""
     st.title("My AI Assistant")
     st.markdown("Ask me anything about *your* spending!")
 
@@ -752,26 +680,34 @@ def render_my_assistant():
         st.info("Add some transactions first, then I can answer your questions!")
         return
 
-    # Load assistant with personal data
     try:
         sys.path.insert(0, str(PROJECT_ROOT / "src"))
         from llm_assistant import FinancialDataManager, FinancialAssistant
-        data_manager = FinancialDataManager(df)
-        assistant = FinancialAssistant(data_manager)
+        data_manager = FinancialDataManager(df, default_period_days=None)
+        assistant = FinancialAssistant(data_manager, mode="personal")
     except Exception:
         assistant = None
 
-    # Mode indicator: Claude API vs demo
     if assistant and getattr(assistant, "use_api", False):
         st.caption("Powered by Claude")
     else:
         st.caption("Demo Mode")
 
-    # Chat
     if "personal_messages" not in st.session_state:
         st.session_state.personal_messages = [
             {"role": "assistant", "content": "Hi! Ask me about your personal spending, subscriptions, or trends."}
         ]
+
+    if (st.session_state.personal_messages 
+        and st.session_state.personal_messages[-1]["role"] == "user"
+        and len(st.session_state.personal_messages) >= 2
+        and st.session_state.personal_messages[-2]["role"] != "user"):
+        pending_prompt = st.session_state.personal_messages[-1]["content"]
+        if assistant:
+            response = assistant.chat(pending_prompt, USER_ID)
+        else:
+            response = "Assistant not available."
+        st.session_state.personal_messages.append({"role": "assistant", "content": response})
 
     for msg in st.session_state.personal_messages:
         with st.chat_message(msg["role"]):
@@ -815,13 +751,35 @@ def render_my_assistant():
                 {"role": "assistant", "content": "Chat cleared! How can I help?"}
             ]
             st.rerun()
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        if st.button("Today", key="pa_today"):
+            st.session_state.personal_messages.append({"role": "user", "content": "What did I spend today?"})
+            st.rerun()
+    with c2:
+        if st.button("Yesterday", key="pa_yesterday"):
+            st.session_state.personal_messages.append({"role": "user", "content": "What did I spend yesterday?"})
+            st.rerun()
+    with c3:
+        if st.button("This month", key="pa_this_month"):
+            st.session_state.personal_messages.append({"role": "user", "content": "How much have I spent this month?"})
+            st.rerun()
+    with c4:
+        if st.button("Total expense", key="pa_total"):
+            st.session_state.personal_messages.append({"role": "user", "content": "What is my total expense?"})
+            st.rerun()
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        if st.button("2 days ago", key="pa_2days"):
+            st.session_state.personal_messages.append({"role": "user", "content": "What did I spend 2 days ago?"})
+            st.rerun()
+    with c2:
+        if st.button("3 days ago", key="pa_3days"):
+            st.session_state.personal_messages.append({"role": "user", "content": "What did I spend 3 days ago?"})
+            st.rerun()
 
 
-# ============================================================
-# MY INSIGHTS
-# ============================================================
 def render_my_insights():
-    """Personal anomaly detection and forecast."""
     st.title("My Insights")
 
     df = load_personal_transactions()
@@ -834,7 +792,6 @@ def render_my_insights():
 
     col1, col2 = st.columns(2)
 
-    # Anomaly Detection
     with col1:
         st.subheader("Anomaly Detection")
         detector = _load_anomaly_detector()
@@ -869,7 +826,7 @@ def render_my_insights():
                     },
                 ))
                 fig.update_layout(height=300, margin=dict(t=50, b=0))
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
 
                 if result.get("top_anomalous_categories"):
                     st.markdown("**Top unusual categories:**")
@@ -880,7 +837,6 @@ def render_my_insights():
         else:
             st.info("Need more transactions for anomaly detection.")
 
-    # Forecast
     with col2:
         st.subheader("Spending Forecast")
         forecaster = _load_forecaster()
@@ -954,7 +910,6 @@ def render_my_insights():
         else:
             st.info("Need more transactions for forecasting.")
 
-    # Classifier demo
     st.markdown("---")
     st.subheader("Test Classifier")
     test_text = st.text_input("Type a transaction to classify:", placeholder="UBER *TRIP $12.50", key="my_classify")
@@ -967,17 +922,10 @@ def render_my_insights():
             c2.metric("Subcategory", result["subcategory"], f"{result['subcategory_confidence']*100:.1f}%")
 
 
-# ============================================================
-# MAIN: PERSONAL ACCOUNT ROUTER
-# ============================================================
 def render_personal_account():
-    """Main entry point for personal account section."""
-
-    # Check login
     if not render_login():
         return
 
-    # Logged in — show personal sidebar nav
     st.sidebar.markdown("---")
     st.sidebar.markdown(f"**{st.session_state.get('username', 'User')}**")
 
@@ -998,7 +946,6 @@ def render_personal_account():
         st.session_state.pop("username", None)
         st.rerun()
 
-    # Route
     if personal_page == "My Dashboard":
         render_personal_dashboard()
     elif personal_page == "Add Expense":

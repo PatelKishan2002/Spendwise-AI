@@ -1,9 +1,4 @@
-"""
-SpendWise AI - Streamlit Dashboard
-===================================
-
-Run with: streamlit run app/streamlit_app.py
-"""
+"""SpendWise Streamlit app. Run: streamlit run app/streamlit_app.py"""
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -11,7 +6,6 @@ load_dotenv()
 import sys
 from pathlib import Path
 
-# Setup project paths
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
@@ -25,9 +19,6 @@ import json
 
 from personal_account import render_personal_account
 
-# ============================================================
-# PAGE CONFIG
-# ============================================================
 st.set_page_config(
     page_title="SpendWise AI",
     page_icon="SW",
@@ -35,17 +26,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ============================================================
-# CUSTOM CSS
-# ============================================================
 st.markdown("""
 <style>
-    /* Main container */
     .main {
         padding: 1rem;
     }
-    
-    /* Metric cards */
+
     .metric-container {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 1.5rem;
@@ -64,8 +50,7 @@ st.markdown("""
         font-size: 0.9rem;
         opacity: 0.9;
     }
-    
-    /* Recommendation cards */
+
     .rec-high {
         border-left: 4px solid #ff4444;
         background: #fff5f5;
@@ -97,17 +82,14 @@ st.markdown("""
         margin: 0.5rem 0;
         border-radius: 0 8px 8px 0;
     }
-    
-    /* Hide Streamlit branding */
+
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* Sidebar styling */
+
     .css-1d391kg {
         padding: 2rem 1rem;
     }
-    
-    /* AI Assistant chat – same font as question, clean chatbot UI */
+
     [data-testid="stChatMessage"] div[data-testid="stMarkdown"] p,
     [data-testid="stChatMessage"] div[data-testid="stMarkdown"] li,
     [data-testid="stChatMessage"] div[data-testid="stMarkdown"] strong,
@@ -123,12 +105,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ============================================================
-# DATA LOADING
-# ============================================================
 @st.cache_data
 def load_transactions():
-    """Load transaction data"""
     try:
         df = pd.read_csv(PROJECT_ROOT / "data/synthetic/transactions_full.csv")
         df['date'] = pd.to_datetime(df['date'])
@@ -142,19 +120,14 @@ def load_transactions():
 
 @st.cache_data
 def load_label_mappings():
-    """Load label mappings"""
     try:
         with open(PROJECT_ROOT / "data/processed/label_mappings.json", 'r') as f:
             return json.load(f)
     except FileNotFoundError:
         return None
 
-# ============================================================
-# LOAD ML MODELS
-# ============================================================
 @st.cache_resource
 def load_classifier():
-    """Load transaction classifier"""
     try:
         from transaction_classifier import TransactionClassifierInference
         return TransactionClassifierInference(str(PROJECT_ROOT / "models/classifier_model"))
@@ -163,7 +136,6 @@ def load_classifier():
 
 @st.cache_resource
 def load_anomaly_detector():
-    """Load anomaly detector"""
     try:
         from anomaly_detector import AnomalyDetector
         return AnomalyDetector(str(PROJECT_ROOT / "models/anomaly_model"))
@@ -172,7 +144,6 @@ def load_anomaly_detector():
 
 @st.cache_resource
 def load_forecaster():
-    """Load spending forecaster (ZICATT)"""
     try:
         from spending_forecaster import ZICATTInference
         return ZICATTInference(str(PROJECT_ROOT / "models/forecaster_model"))
@@ -181,7 +152,6 @@ def load_forecaster():
 
 @st.cache_resource
 def load_recommender(_df):
-    """Load recommendation engine"""
     try:
         from recommendation_engine import RecommendationService
         return RecommendationService(_df)
@@ -190,35 +160,27 @@ def load_recommender(_df):
 
 @st.cache_resource
 def load_assistant(_df):
-    """Load LLM assistant"""
     try:
         from llm_assistant import FinancialDataManager, FinancialAssistant
         data_manager = FinancialDataManager(_df)
-        return FinancialAssistant(data_manager)
+        return FinancialAssistant(data_manager, mode="showcase")
     except Exception as e:
         return None
 
-# ============================================================
-# HELPER FUNCTIONS
-# ============================================================
 def get_spending_summary(df, user_id, days=30):
-    """Get spending summary for a user"""
     user_df = df[df['user_id'] == user_id]
     max_date = user_df['date'].max()
     
-    # Current period
     current = user_df[user_df['date'] > max_date - timedelta(days=days)]
     current_expenses = current[current['is_expense']]['amount'].abs().sum()
     current_income = current[~current['is_expense']]['amount'].sum()
     current_count = len(current[current['is_expense']])
     
-    # Previous period
     prev_start = max_date - timedelta(days=days*2)
     prev_end = max_date - timedelta(days=days)
     previous = user_df[(user_df['date'] > prev_start) & (user_df['date'] <= prev_end)]
     prev_expenses = previous[previous['is_expense']]['amount'].abs().sum()
     
-    # Change
     change_pct = ((current_expenses - prev_expenses) / prev_expenses * 100) if prev_expenses > 0 else 0
     
     return {
@@ -231,7 +193,6 @@ def get_spending_summary(df, user_id, days=30):
     }
 
 def get_spending_by_category(df, user_id, days=30):
-    """Get spending breakdown by category"""
     user_df = df[df['user_id'] == user_id]
     max_date = user_df['date'].max()
     
@@ -252,7 +213,6 @@ def get_spending_by_category(df, user_id, days=30):
     return result
 
 def get_monthly_trend(df, user_id, months=6):
-    """Get monthly spending trend"""
     user_df = df[df['user_id'] == user_id]
     expenses = user_df[user_df['is_expense']].copy()
     expenses['amount'] = expenses['amount'].abs()
@@ -261,19 +221,13 @@ def get_monthly_trend(df, user_id, months=6):
     return monthly
 
 def get_recent_transactions(df, user_id, limit=20):
-    """Get recent transactions"""
     user_df = df[df['user_id'] == user_id].copy()
     return user_df.sort_values('date', ascending=False).head(limit)
 
-# ============================================================
-# DASHBOARD PAGE
-# ============================================================
 def render_dashboard(df, user_id, days):
-    """Render main dashboard"""
     st.title("Financial Dashboard")
     st.markdown(f"**User:** `{user_id}` | **Period:** Last {days} days")
     
-    # Summary metrics
     summary = get_spending_summary(df, user_id, days)
     
     col1, col2, col3, col4 = st.columns(4)
@@ -306,7 +260,6 @@ def render_dashboard(df, user_id, days):
     
     st.markdown("---")
     
-    # Charts row
     col1, col2 = st.columns(2)
     
     with col1:
@@ -326,7 +279,7 @@ def render_dashboard(df, user_id, days):
                 showlegend=True,
                 legend=dict(orientation="h", yanchor="bottom", y=-0.3)
             )
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
     
     with col2:
         st.subheader("Monthly Trend")
@@ -343,11 +296,10 @@ def render_dashboard(df, user_id, days):
             yaxis_title="Spending ($)",
             margin=dict(t=20, b=20, l=20, r=20)
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
     
-    # Recommendations
     st.subheader("Smart Recommendations")
     
     recommender = load_recommender(df)
@@ -383,11 +335,7 @@ def render_dashboard(df, user_id, days):
     else:
         st.info("Recommendation engine not available. Run Notebook 07 first.")
 
-# ============================================================
-# TRANSACTIONS PAGE
-# ============================================================
 def render_transactions(df, user_id, days):
-    """Render transactions page"""
     st.title("Transaction History")
     st.markdown(f"**User:** `{user_id}` | **Period:** Last {days} days")
     
@@ -395,7 +343,6 @@ def render_transactions(df, user_id, days):
     max_date = user_df['date'].max()
     user_df = user_df[user_df['date'] > max_date - timedelta(days=days)]
     
-    # Filters
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -408,7 +355,6 @@ def render_transactions(df, user_id, days):
     with col3:
         sort_order = st.selectbox("Sort", ['Newest First', 'Oldest First', 'Highest Amount', 'Lowest Amount'])
     
-    # Apply filters
     filtered = user_df.copy()
     
     if selected_cat != 'All':
@@ -419,7 +365,6 @@ def render_transactions(df, user_id, days):
     elif tx_type == 'Income':
         filtered = filtered[filtered['amount'] > 0]
     
-    # Sort
     if sort_order == 'Newest First':
         filtered = filtered.sort_values('date', ascending=False)
     elif sort_order == 'Oldest First':
@@ -431,7 +376,6 @@ def render_transactions(df, user_id, days):
         filtered['abs_amount'] = filtered['amount'].abs()
         filtered = filtered.sort_values('abs_amount', ascending=True)
     
-    # Display stats
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Total Transactions", len(filtered))
@@ -444,22 +388,17 @@ def render_transactions(df, user_id, days):
     
     st.markdown("---")
     
-    # Transaction table
     display_df = filtered[['date', 'merchant', 'amount', 'category', 'subcategory']].head(100).copy()
     display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
     display_df['amount'] = display_df['amount'].apply(lambda x: f"${x:,.2f}")
     
     st.dataframe(
         display_df,
-        width="stretch",
+        use_container_width=True,
         hide_index=True
     )
 
-# ============================================================
-# ANALYTICS PAGE
-# ============================================================
 def render_analytics(df, user_id, days):
-    """Render analytics page"""
     st.title("Spending Analytics")
     st.markdown(f"**User:** `{user_id}` | **Period:** Last {days} days")
     
@@ -469,7 +408,6 @@ def render_analytics(df, user_id, days):
     expenses = user_df[user_df['is_expense']].copy()
     expenses['amount'] = expenses['amount'].abs()
     
-    # Top spending categories
     st.subheader("Top Spending Categories")
     by_cat = get_spending_by_category(df, user_id, days)
     
@@ -487,11 +425,10 @@ def render_analytics(df, user_id, days):
             showlegend=False,
             margin=dict(t=20, b=20)
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
     
-    # Spending by day of week
     col1, col2 = st.columns(2)
     
     with col1:
@@ -507,7 +444,7 @@ def render_analytics(df, user_id, days):
             yaxis_title="Total Spending ($)",
             showlegend=False
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
     
     with col2:
         st.subheader("Spending Over Time")
@@ -525,11 +462,10 @@ def render_analytics(df, user_id, days):
             xaxis_title="Date",
             yaxis_title="Daily Spending ($)"
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
     
-    # Subcategory breakdown
     st.subheader("Subcategory Breakdown")
     
     selected_category = st.selectbox(
@@ -545,18 +481,14 @@ def render_analytics(df, user_id, days):
         names=by_subcat.index,
         hole=0.3
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
-# ============================================================
-# INSIGHTS PAGE (AI Models)
-# ============================================================
 def render_insights(df, user_id, days):
-    """Render AI insights page"""
     st.title("AI-Powered Insights")
+    st.caption(f"*Same period as Dashboard: last {days} days for user {user_id}*")
     
     col1, col2 = st.columns(2)
     
-    # Anomaly Detection
     with col1:
         st.subheader("Anomaly Detection")
         
@@ -571,13 +503,11 @@ def render_insights(df, user_id, days):
                 score = result.get('anomaly_score', 0)
                 is_anomaly = result.get('is_anomaly', False)
                 
-                # Status
                 if is_anomaly:
                     st.error("Unusual spending detected.")
                 else:
                     st.success("Spending looks normal.")
                 
-                # Gauge chart
                 fig = go.Figure(go.Indicator(
                     mode="gauge+number",
                     value=score,
@@ -599,14 +529,13 @@ def render_insights(df, user_id, days):
                     }
                 ))
                 fig.update_layout(height=300, margin=dict(t=50, b=0))
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
                 
             except Exception as e:
                 st.error(f"Error: {e}")
         else:
             st.warning("Anomaly detector not available. Run Notebook 04 first.")
     
-    # Spending Forecast
     with col2:
         st.subheader("Spending Forecast")
         
@@ -617,7 +546,6 @@ def render_insights(df, user_id, days):
             expenses = user_df[user_df['is_expense']].copy()
             expenses['amount'] = expenses['amount'].abs()
             
-            # Build per-category weekly history
             if hasattr(forecaster, 'categories'):
                 expenses['week'] = pd.to_datetime(expenses['date']).dt.to_period('W')
                 
@@ -633,35 +561,30 @@ def render_insights(df, user_id, days):
                     try:
                         result = forecaster.predict(spending_history)
 
-                        # Calculate current week's actual spending
-                        current_week = expenses.groupby('week')['amount'].sum()
-                        current_week_total = current_week.iloc[-1] if len(current_week) > 0 else 0
-                        prev_week_total = current_week.iloc[-2] if len(current_week) > 1 else 0
+                        summary = get_spending_summary(df, user_id, days)
+                        actual_total = summary["expenses"]
+                        change_pct = summary["change_pct"]
                         
-                        # Show current vs predicted side by side
                         metric_col1, metric_col2 = st.columns(2)
                         with metric_col1:
-                            week_change = ((current_week_total - prev_week_total) / prev_week_total * 100) if prev_week_total > 0 else 0
                             st.metric(
-                                "This Week (Actual)",
-                                f"${current_week_total:,.2f}",
-                                f"{week_change:+.1f}% vs last week"
+                                f"Last {days} days (Actual)",
+                                f"${actual_total:,.2f}",
+                                f"{change_pct:+.1f}% vs prev period"
                             )
                         with metric_col2:
-                            pred_change = ((result['predicted_total'] - current_week_total) / current_week_total * 100) if current_week_total > 0 else 0
+                            pred_change = ((result['predicted_total'] - actual_total) / actual_total * 100) if actual_total > 0 else 0
                             st.metric(
                                 "Next Week (Predicted)",
                                 f"${result['predicted_total']:,.2f}",
-                                f"{pred_change:+.1f}% vs this week"
+                                f"{pred_change:+.1f}% vs last {days} days"
                             )
                         
                         st.caption(f"Prediction range: ${result['total_lower_bound']:,.2f} – ${result['total_upper_bound']:,.2f}")
                         
-                        # Per-category breakdown
                         if 'per_category' in result:
                             st.markdown("**Per-category forecast:**")
                             
-                            # Sort by expected spending
                             sorted_cats = sorted(
                                 result['per_category'].items(),
                                 key=lambda x: x[1]['expected_spending'],
@@ -678,21 +601,20 @@ def render_insights(df, user_id, days):
                                     f"({prob*100:.0f}% likely, ±${uncertainty:,.0f})"
                                 )
 
-                            # Per-category comparison: this week vs predicted
                             st.markdown("---")
-                            st.markdown("**This week vs Next week (per category):**")
+                            st.markdown(f"**Last {days} days (Actual) vs Next week (Predicted) by category:**")
                             
-                            current_week_period = expenses['week'].max()
-                            current_cat = expenses[expenses['week'] == current_week_period].groupby('category')['amount'].sum()
+                            by_cat_actual = get_spending_by_category(df, user_id, days)
+                            actual_by_cat = {item['category']: item['amount'] for item in by_cat_actual}
                             
                             comparison_rows = []
                             for cat, pred in sorted_cats[:6]:
-                                actual_now = current_cat.get(cat, 0)
+                                actual_now = actual_by_cat.get(cat, 0)
                                 predicted = pred['expected_spending']
                                 diff = predicted - actual_now
                                 comparison_rows.append({
                                     'Category': cat,
-                                    'This Week': f"${actual_now:,.0f}",
+                                    f'Last {days}d': f"${actual_now:,.0f}",
                                     'Predicted': f"${predicted:,.0f}",
                                     'Change': f"{'↑' if diff > 0 else '↓'} ${abs(diff):,.0f}",
                                     'Confidence': f"{pred['probability']*100:.0f}%"
@@ -700,7 +622,7 @@ def render_insights(df, user_id, days):
 
                             st.dataframe(
                                 pd.DataFrame(comparison_rows),
-                                width="stretch",
+                                use_container_width=True,
                                 hide_index=True
                             )
 
@@ -709,7 +631,6 @@ def render_insights(df, user_id, days):
                 else:
                     st.info(f"Need at least 8 weeks of data per category. Current minimum: {min_weeks} weeks.")
             else:
-                # Backward compatible: old forecaster without categories
                 expenses['week'] = pd.to_datetime(expenses['date']).dt.to_period('W')
                 weekly = expenses.groupby('week')['amount'].sum()
                 history = weekly.tail(12).tolist()
@@ -731,7 +652,6 @@ def render_insights(df, user_id, days):
     
     st.markdown("---")
     
-    # Transaction Classification Demo
     st.subheader("Transaction Classifier Demo")
     
     classifier = load_classifier()
@@ -764,7 +684,6 @@ def render_insights(df, user_id, days):
     else:
         st.warning("Classifier not available. Run Notebook 03 first.")
 
-    # Model info boxes
     st.markdown("---")
     st.subheader("ℹ️ Models Used on This Page")
     
@@ -797,27 +716,34 @@ def render_insights(df, user_id, days):
             "**Params:** 66.9M | **Accuracy:** 94.84%"
         )
 
-# ============================================================
-# AI ASSISTANT PAGE
-# ============================================================
-def render_assistant(df, user_id):
-    """Render AI assistant page"""
+def render_assistant(df, user_id, days=30):
     st.title("AI Financial Assistant")
     assistant = load_assistant(df)
-    # Mode indicator: Claude API vs demo
+    if assistant and getattr(assistant, "data_manager", None):
+        assistant.data_manager.default_period_days = days
+    st.caption(f"*Using same period as Dashboard: last {days} days*")
     if assistant and getattr(assistant, "use_api", False):
         st.caption("Powered by Claude")
     else:
         st.caption("Demo Mode")
     st.markdown("Ask me anything about your finances!")
 
-    # Initialize chat history
     if "messages" not in st.session_state:
         st.session_state.messages = [
             {"role": "assistant", "content": "Hi! I'm your SpendWise AI assistant. Ask me about your spending, subscriptions, or financial trends!"}
         ]
 
-    # Display chat history
+    if (st.session_state.messages 
+        and st.session_state.messages[-1]["role"] == "user"
+        and len(st.session_state.messages) >= 2
+        and st.session_state.messages[-2]["role"] != "user"):
+        pending_prompt = st.session_state.messages[-1]["content"]
+        if assistant:
+            response = assistant.chat(pending_prompt, user_id)
+        else:
+            response = "Assistant not available. Please run Notebook 06 first."
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             if message["role"] == "assistant":
@@ -825,45 +751,36 @@ def render_assistant(df, user_id):
             else:
                 st.text(message["content"])
 
-    # Chat input
     if prompt := st.chat_input("Ask about your spending..."):
-        # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.text(prompt)
 
-        # Get response
         if assistant:
             response = assistant.chat(prompt, user_id)
         else:
             response = "Assistant not available. Please run Notebook 06 first."
 
-        # Add assistant response
         st.session_state.messages.append({"role": "assistant", "content": response})
         with st.chat_message("assistant"):
             st.markdown(response.replace("$", "\\$"))
     
-    # Quick action buttons
     st.markdown("---")
     st.markdown("**Quick Questions:**")
     
     col1, col2, col3, col4 = st.columns(4)
-    
     with col1:
         if st.button("Spending Summary"):
             st.session_state.messages.append({"role": "user", "content": "Give me a spending summary"})
             st.rerun()
-    
     with col2:
         if st.button("My Subscriptions"):
             st.session_state.messages.append({"role": "user", "content": "What are my subscriptions?"})
             st.rerun()
-    
     with col3:
         if st.button("Spending Trend"):
             st.session_state.messages.append({"role": "user", "content": "What's my spending trend?"})
             st.rerun()
-    
     with col4:
         if st.button("Clear Chat"):
             st.session_state.messages = [
@@ -871,11 +788,21 @@ def render_assistant(df, user_id):
             ]
             st.rerun()
 
-# ============================================================
-# RECEIPT SCANNER PAGE
-# ============================================================
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("This Month"):
+            st.session_state.messages.append({"role": "user", "content": "How much have I spent this month?"})
+            st.rerun()
+    with col2:
+        if st.button("By Category"):
+            st.session_state.messages.append({"role": "user", "content": "Show spending by category"})
+            st.rerun()
+    with col3:
+        if st.button("Compare to Average"):
+            st.session_state.messages.append({"role": "user", "content": "Compare my food spending to average"})
+            st.rerun()
+
 def _parse_price_receipt(raw: str) -> float:
-    """Parse price string from Donut OCR (same logic as My Account)."""
     s = str(raw).strip().replace("$", "").replace(" ", "")
     if not s or any(c in s for c in [":", "AM", "PM", "am", "pm"]):
         return 0.0
@@ -896,9 +823,111 @@ def _parse_price_receipt(raw: str) -> float:
         return 0.0
 
 
+def _looks_like_store_or_header(name: str) -> bool:
+    if not name or len(name) < 2:
+        return True
+    n = name.lower()
+    skip = [
+        "server", "cashier", "table", "open time", "date", "time", "thank", "gst", "pst",
+        "visit ", "owned and operated", "wholesale", "store", "member", "address", "blvd",
+        "invoice", "acct", "auth", "interac", "receipt", "operated", "visit", "www.",
+        "owned", "transaction", "record", "type:", "purchase", "debit", "credit",
+    ]
+    if any(s in n for s in skip):
+        return True
+    if "#" in name and any(c.isdigit() for c in name):
+        return True
+    digits = sum(c.isdigit() for c in name)
+    if len(name) <= 12 and digits >= len(name) * 0.6:
+        return True
+    return False
+
+
+def _extract_receipt_items(data: dict) -> list:
+    items = []
+    root_nm = (data.get("nm") or data.get("name") or "") if isinstance(data.get("nm"), str) else ""
+
+    def get_name(obj):
+        if not isinstance(obj, dict):
+            return str(obj).strip() if obj else ""
+        for key in ("nm", "name", "value"):
+            v = obj.get(key)
+            if v is None:
+                continue
+            if isinstance(v, dict):
+                return get_name(v)
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+        return ""
+
+    def get_price(obj):
+        if not isinstance(obj, dict):
+            return None
+        for key in ("price", "unitprice", "total", "total_price", "unit_price"):
+            v = obj.get(key)
+            if v is None:
+                continue
+            if isinstance(v, (int, float)) and 0 < v <= 5000:
+                return round(float(v), 2)
+            if isinstance(v, str):
+                p = _parse_price_receipt(v)
+                if p > 0:
+                    return p
+        return None
+
+    def add_item(name: str, price: float):
+        if not name or price <= 0 or price > 5000:
+            return
+        if _looks_like_store_or_header(name):
+            return
+        if root_nm and name.strip().lower() == root_nm.strip().lower():
+            return
+        items.append({"name": name, "price": round(float(price), 2)})
+
+    if "items" in data and isinstance(data["items"], list):
+        for it in data["items"]:
+            name = get_name(it)
+            price = it.get("price")
+            if isinstance(price, (int, float)) and 0 < price <= 5000:
+                add_item(name, float(price))
+            else:
+                p = get_price(it) or _parse_price_receipt(str(price or ""))
+                if p > 0:
+                    add_item(name, p)
+
+    if not items and "menu" in data:
+        menu = data["menu"]
+        if isinstance(menu, dict):
+            menu = list(menu.values())
+        if isinstance(menu, list):
+            for it in menu:
+                if not isinstance(it, dict):
+                    continue
+                name = get_name(it)
+                price = get_price(it)
+                if price is None:
+                    price = _parse_price_receipt(str(it.get("unitprice", it.get("price", ""))))
+                if price and price > 0:
+                    add_item(name, price)
+
+    if not items:
+        for key in ("line_items", "entries", "products", "lines"):
+            if key not in data or not isinstance(data[key], list):
+                continue
+            for it in data[key]:
+                if not isinstance(it, dict):
+                    continue
+                name = get_name(it)
+                price = get_price(it)
+                if price is None:
+                    price = _parse_price_receipt(str(it.get("price", it.get("unitprice", ""))))
+                if price and price > 0:
+                    add_item(name, price)
+
+    return items
+
+
 def render_receipt_scanner():
-    """Render receipt scanner page. Uses a subprocess for parsing to avoid
-    PyTorch/transformers mutex crash (libc++abi) on macOS when loading Donut in-process."""
     import subprocess
     import tempfile
 
@@ -917,7 +946,7 @@ def render_receipt_scanner():
 
         with col1:
             st.subheader("Uploaded Receipt")
-            st.image(uploaded_file, width="stretch")
+            st.image(uploaded_file, use_container_width=True)
             st.caption(f"Current: {uploaded_file.name}")
 
         with col2:
@@ -959,59 +988,8 @@ def render_receipt_scanner():
                                 with st.expander("Raw OCR output", expanded=False):
                                     st.json(data)
                             else:
-                                # Parse items: support "items" (list of {name, price}) or CORD "menu"
-                                items = []
-                                if "items" in data and isinstance(data["items"], list):
-                                    for it in data["items"]:
-                                        n = it.get("name", it.get("nm", ""))
-                                        if isinstance(n, dict):
-                                            n = n.get("value", n.get("nm", str(n)))
-                                        if not n or not isinstance(n, str):
-                                            continue
-                                        p = it.get("price", 0)
-                                        if isinstance(p, (int, float)) and 0 < p <= 500:
-                                            items.append({"name": n, "price": round(float(p), 2)})
-                                        else:
-                                            pv = _parse_price_receipt(str(p))
-                                            if pv > 0:
-                                                items.append({"name": n, "price": pv})
-                                elif "menu" in data:
-                                    menu = data["menu"]
-                                    if isinstance(menu, dict):
-                                        menu = list(menu.values()) if menu else []
-                                    if isinstance(menu, list):
-                                        for item in menu:
-                                            if not isinstance(item, dict):
-                                                continue
-                                            name = item.get("nm", item.get("name", ""))
-                                            if isinstance(name, dict):
-                                                name = name.get("value", name.get("nm", str(name)))
-                                            if not name or not isinstance(name, str):
-                                                continue
-                                            name_lower = name.lower()
-                                            if any(skip in name_lower for skip in ["server", "cashier", "table", "open time", "date", "time", "thank"]):
-                                                continue
-                                            price_raw = item.get("unitprice", item.get("price", "0"))
-                                            price_str = str(price_raw).strip().replace("$", "").replace(" ", "").replace("@", "")
-                                            if "," in price_str and "." not in price_str:
-                                                parts = price_str.split(",")
-                                                if len(parts) == 2 and len(parts[1]) == 2:
-                                                    price_str = price_str.replace(",", ".")
-                                                else:
-                                                    price_str = price_str.replace(",", "")
-                                            elif "," in price_str and "." in price_str:
-                                                price_str = price_str.replace(",", "")
-                                            if any(c in price_str for c in [":", "AM", "PM"]):
-                                                continue
-                                            try:
-                                                price_val = float(price_str)
-                                                if price_val <= 0 or price_val > 500:
-                                                    continue
-                                                items.append({"name": name, "price": round(price_val, 2)})
-                                            except ValueError:
-                                                continue
+                                items = _extract_receipt_items(data)
 
-                                # Get total
                                 receipt_total = None
                                 for key in ["total", "sub_total"]:
                                     if key in data and receipt_total is None:
@@ -1032,9 +1010,19 @@ def render_receipt_scanner():
                                             except ValueError:
                                                 pass
 
-                                total = receipt_total if receipt_total and receipt_total > 0 else (sum(i["price"] for i in items) if items else 0)
+                                items_sum = sum(i["price"] for i in items) if items else 0
+                                if receipt_total and receipt_total > 0:
+                                    if receipt_total > 5000 or (items and abs(receipt_total - items_sum) > 1000):
+                                        total = round(items_sum, 2) if items else 0
+                                        if receipt_total > 5000 and items:
+                                            st.caption(f"*Total from Donut (${receipt_total:,.2f}) looked incorrect; showing sum of items.*")
+                                    else:
+                                        total = receipt_total
+                                else:
+                                    total = round(items_sum, 2) if items else 0
 
-                                # Show Items and Total FIRST (above raw), so user always sees them
+                                if data.get("parser") == "donut":
+                                    st.caption("**Parser:** Donut (CORD)")
                                 if items:
                                     st.markdown("**Items found:**")
                                     for it in items:
@@ -1057,8 +1045,6 @@ def render_receipt_scanner():
                     else:
                         st.info("No structured data extracted.")
                 else:
-                    # Try parsing stdout even with non-zero return code
-                    # (HuggingFace warnings in stderr cause non-zero exit)
                     out = result.stdout.strip()
                     if out:
                         try:
@@ -1066,53 +1052,7 @@ def render_receipt_scanner():
                             if data.get("error"):
                                 st.error(f"Parser error: {data['error'][:200]}")
                             else:
-                                items = []
-                                if "items" in data and isinstance(data["items"], list):
-                                    for it in data["items"]:
-                                        n = it.get("name", it.get("nm", ""))
-                                        if isinstance(n, dict):
-                                            n = n.get("value", n.get("nm", str(n)))
-                                        if not n or not isinstance(n, str):
-                                            continue
-                                        p = it.get("price", 0)
-                                        if isinstance(p, (int, float)) and 0 < p <= 500:
-                                            items.append({"name": n, "price": round(float(p), 2)})
-                                        else:
-                                            pv = _parse_price_receipt(str(p))
-                                            if pv > 0:
-                                                items.append({"name": n, "price": pv})
-                                elif "menu" in data:
-                                    menu = data["menu"]
-                                    if isinstance(menu, dict):
-                                        menu = list(menu.values()) if menu else []
-                                    if isinstance(menu, list):
-                                        for item in menu:
-                                            if not isinstance(item, dict):
-                                                continue
-                                            name = item.get("nm", item.get("name", ""))
-                                            if isinstance(name, dict):
-                                                name = name.get("value", name.get("nm", str(name)))
-                                            if not name or not isinstance(name, str):
-                                                continue
-                                            if any(skip in name.lower() for skip in ["server", "cashier", "table", "open time", "date", "time", "thank"]):
-                                                continue
-                                            price_raw = item.get("unitprice", item.get("price", "0"))
-                                            price_str = str(price_raw).strip().replace("$", "").replace(" ", "").replace("@", "")
-                                            if "," in price_str and "." not in price_str:
-                                                parts = price_str.split(",")
-                                                if len(parts) == 2 and len(parts[1]) == 2:
-                                                    price_str = price_str.replace(",", ".")
-                                                else:
-                                                    price_str = price_str.replace(",", "")
-                                            if any(c in price_str for c in [":", "AM", "PM"]):
-                                                continue
-                                            try:
-                                                price_val = float(price_str)
-                                                if price_val <= 0 or price_val > 500:
-                                                    continue
-                                                items.append({"name": name, "price": round(price_val, 2)})
-                                            except ValueError:
-                                                continue
+                                items = _extract_receipt_items(data)
                                 receipt_total = None
                                 for key in ["total", "sub_total"]:
                                     if key in data and receipt_total is None:
@@ -1131,7 +1071,18 @@ def render_receipt_scanner():
                                                 receipt_total = float(str(val).replace("$", "").replace(",", ".").replace(" ", ""))
                                             except ValueError:
                                                 pass
-                                total = receipt_total if receipt_total and receipt_total > 0 else (sum(i["price"] for i in items) if items else 0)
+                                items_sum = sum(i["price"] for i in items) if items else 0
+                                if receipt_total and receipt_total > 0:
+                                    if receipt_total > 5000 or (items and abs(receipt_total - items_sum) > 1000):
+                                        total = round(items_sum, 2) if items else 0
+                                        if receipt_total > 5000 and items:
+                                            st.caption(f"*Total from Donut (${receipt_total:,.2f}) looked incorrect; showing sum of items.*")
+                                    else:
+                                        total = receipt_total
+                                else:
+                                    total = round(items_sum, 2) if items else 0
+                                if data.get("parser") == "donut":
+                                    st.caption("**Parser:** Donut (CORD)")
                                 if items:
                                     st.markdown("**Items found:**")
                                     for it in items:
@@ -1163,7 +1114,6 @@ def render_receipt_scanner():
 
 
 def _show_receipt_demo_output(st):
-    """Show demo JSON when parser is unavailable or fails."""
     st.markdown("**Demo Output:**")
     demo_result = {
         "items": [
@@ -1177,14 +1127,7 @@ def _show_receipt_demo_output(st):
     st.json(demo_result)
 
 
-
-# ============================================================
-# MAIN APP
-# ============================================================
 def main():
-    """Main application"""
-    
-    # Mode selector at top of sidebar
     st.sidebar.title("SpendWise AI")
     st.sidebar.markdown("*AI-Powered Finance*")
     st.sidebar.markdown("---")
@@ -1196,20 +1139,15 @@ def main():
     )
     
     if mode == "My Account":
-        # Personal account (login required)
         render_personal_account()
         return
-    
-    # ---- ML Showcase (existing app) ----
-    
-    # Load data
+
     df = load_transactions()
     
     if df is None:
         st.error("❌ Could not load transaction data. Please run Notebook 01 first.")
         st.stop()
     
-    # User selection
     users = sorted(df['user_id'].unique())
     selected_user = st.sidebar.selectbox(
         "👤 Select User",
@@ -1217,7 +1155,6 @@ def main():
         index=0
     )
     
-    # Time period
     period_options = {
         "Last 7 days": 7,
         "Last 30 days": 30,
@@ -1232,7 +1169,6 @@ def main():
     
     st.sidebar.markdown("---")
     
-    # Navigation
     page = st.sidebar.radio(
         "Navigation",
         [
@@ -1247,16 +1183,18 @@ def main():
     
     st.sidebar.markdown("---")
     
-    # Model status
-    st.sidebar.markdown("### Model Status")
+    st.sidebar.markdown("### Components Status")
     classifier = load_classifier()
     anomaly = load_anomaly_detector()
     forecaster = load_forecaster()
+    recommender = load_recommender(df)
+    assistant = load_assistant(df)
     st.sidebar.markdown(f"- Classifier: {'OK' if classifier else 'Missing'}")
     st.sidebar.markdown(f"- Anomaly: {'OK' if anomaly else 'Missing'}")
     st.sidebar.markdown(f"- Forecaster: {'OK' if forecaster else 'Missing'}")
+    st.sidebar.markdown(f"- Recommender: {'OK' if recommender else 'Missing'}")
+    st.sidebar.markdown(f"- Assistant: {'OK' if assistant else 'Missing'}")
     
-    # Render selected page
     if page == "Dashboard":
         render_dashboard(df, selected_user, days)
     elif page == "Transactions":
@@ -1266,10 +1204,9 @@ def main():
     elif page == "Insights":
         render_insights(df, selected_user, days)
     elif page == "AI Assistant":
-        render_assistant(df, selected_user)
+        render_assistant(df, selected_user, days)
     elif page == "Receipt Scanner":
         render_receipt_scanner()
 
-# Run the app
 if __name__ == "__main__":
     main()

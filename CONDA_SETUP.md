@@ -7,7 +7,7 @@ Using **Python 3.11** avoids the macOS mutex crash with HuggingFace tokenizers t
 From the project root:
 
 ```bash
-cd "/Users/patel/Documents/E/MPS Sem 5/ALY 6030/Final_Project/spendwise-ai"
+cd "/Users/patel/Documents/E/MPS Sem 5/EAI 6020/Final_Project/SpendwiseAI"
 chmod +x setup_conda_env.sh
 ./setup_conda_env.sh
 ```
@@ -16,7 +16,7 @@ Then:
 
 ```bash
 conda activate spendwise311
-cd "/Users/patel/Documents/E/MPS Sem 5/ALY 6030/Final_Project/spendwise-ai"
+cd "/Users/patel/Documents/E/MPS Sem 5/EAI 6020/Final_Project/SpendwiseAI"
 streamlit run app/streamlit_app.py
 ```
 
@@ -29,16 +29,12 @@ conda create -n spendwise311 python=3.11 -y
 # 2. Activate
 conda activate spendwise311
 
-# 3. Install dependencies
-pip install torch torchvision torchaudio
-pip install "transformers>=4.30" datasets
-pip install pandas numpy scikit-learn
-pip install streamlit plotly matplotlib seaborn
-pip install Pillow tqdm anthropic sentencepiece python-dotenv
+# 3. Install dependencies (from requirements.txt)
+pip install -r requirements.txt
 pip install pytesseract   # optional, for Tesseract OCR fallback
 
 # 4. Go to project and run
-cd "/Users/patel/Documents/E/MPS Sem 5/ALY 6030/Final_Project/spendwise-ai"
+cd "/Users/patel/Documents/E/MPS Sem 5/EAI 6020/Final_Project/SpendwiseAI"
 streamlit run app/streamlit_app.py
 ```
 
@@ -58,7 +54,7 @@ Whenever you want to start the app:
 
 ```bash
 conda activate spendwise311
-cd "/Users/patel/Documents/E/MPS Sem 5/ALY 6030/Final_Project/spendwise-ai"
+cd "/Users/patel/Documents/E/MPS Sem 5/EAI 6020/Final_Project/SpendwiseAI"
 streamlit run app/streamlit_app.py
 ```
 

@@ -1,5 +1,7 @@
 **Single outcomes summary:** For a consolidated list of what each notebook/file produces (outputs, metrics, artifacts), see **OUTCOMES_REPORT.md** in this folder. Update that file when you add notebooks 05–08.
 
+**For presentations & final report:** Scroll to **“SpendWise AI – Full app map (for presentation & report)”** at the end of this file. It summarizes **every Streamlit page** (ML Showcase + My Account), the two AI Assistant modes, data sources, number-alignment ideas, and engineering gotchas in plain language.
+
 ---
 
 Part 1: The Transformer Foundation
@@ -527,11 +529,12 @@ So the app is split into: demo mode (ML Showcase) and real personal use (My Acco
 
 ### Receipt Scanner and the worker (why we use a subprocess)
 
-- The **Receipt Scanner** page lets you upload a receipt image. The app uses the Donut model (from Notebook 02) to turn the image into text/JSON (items, total, etc.).
+- **ML Showcase → Receipt Scanner:** upload a receipt image; the app uses **Donut only** (Notebook 02 pipeline) to turn pixels into structured JSON (items, total, etc.). **Claude is not used** on this page.
+- **My Account → Add Expense → scan receipt:** **Claude Vision runs first** if `ANTHROPIC_API_KEY` is set; if that fails or there is no key, the app **falls back to the same Donut worker** as the showcase.
 - On some machines (e.g. macOS), loading Donut (PyTorch/transformers) inside the same process as Streamlit can cause a crash (mutex/libc++abi error).
-- **What we did:** We run the receipt parsing in a **separate process** (a small worker script). The Streamlit app calls this worker, gets the result back, and shows it. If the worker fails or times out, the app shows an error instead of crashing. So the scanner works reliably without breaking the main app.
+- **What we did:** We run Donut parsing in a **separate process** (`app/parse_receipt_worker.py`). The Streamlit app calls this worker, gets JSON back, and shows it. If the worker fails or times out, the app shows an error instead of crashing the whole UI.
 
-In short: Receipt Scanner = upload image → worker runs Donut in another process → app gets parsed result and displays it.
+In short: **Showcase scanner** = Donut worker only. **Personal “scan receipt”** = Claude Vision when possible, else Donut worker.
 
 ### AI Assistant chat – same font, clean chatbot look
 
@@ -540,3 +543,129 @@ In short: Receipt Scanner = upload image → worker runs Donut in another proces
 - **What we did:** We added CSS in the app so that *all* chat messages (your question and the AI’s reply) use the **same font** and size (system font, 1rem). Bold is still slightly bolder but same font family. So it looks like a simple, clean chatbot UI—no fancy or inconsistent fonts.
 
 So after Notebook 08 we: added two modes (ML Showcase + My Account), made Receipt Scanner use a worker so it doesn’t crash the app, and made the AI chat look clean and consistent (same font as the question).
+
+
+---
+
+## SpendWise AI – Full app map (for presentation & report)
+
+This section is a **simple tour of the whole product**: what each screen does, where data comes from, and what matters when you demo or write the final report.
+
+### Big picture
+
+- **ML Showcase** = demo on **synthetic** transactions (`data/synthetic/transactions_full.csv`). Good for showing all ML models and charts.
+- **My Account** = **your** transactions in a small CSV (`data/personal/my_transactions.csv`). Good for “real user” story: daily adds, day-level questions.
+
+### Donut vs Claude – simple split (important for slides)
+
+We use **two different AI systems** in the app. They are **not** interchangeable; each has a clear job.
+
+| | **Donut** (vision model, local) | **Claude** (Anthropic API) |
+|---|----------------------------------|----------------------------|
+| **What it is** | Image → structured receipt JSON (items, totals). Runs via PyTorch / `transformers` on your machine (or in a worker process). | **(1)** Chat assistant with tools over your transaction data. **(2)** Optional **Claude Vision** to read a receipt photo (API). |
+| **ML Showcase** | **Receipt Scanner** uses **Donut only** (subprocess worker). No Claude on that page. | **AI Assistant** uses **Claude** (if `ANTHROPIC_API_KEY` is set) for natural-language Q&A over synthetic data; otherwise demo / rule-based replies. |
+| **My Account** | **Add Expense → scan receipt:** used as **fallback** if Claude Vision is off, fails, or has no credits (same Donut worker as notebooks). | **My Assistant** uses **Claude** the same way as showcase but on **personal** data + day-level tools. **Add Expense → scan receipt:** tries **Claude Vision first** (best quality when the key works). |
+
+**One-line for your presentation:** “**Donut** = offline receipt OCR for the demo scanner and as backup; **Claude** = the financial chat in both areas, plus smart receipt reading in My Account when the API is available.”
+
+---
+
+### ML Showcase – every page (sidebar: user + time period)
+
+**Data:** One CSV of fake bank-style transactions for many users. Sidebar: pick a **user** and **Last 7 / 30 / 90 days**. **Transactions, Analytics,** and the **Insights** blocks that are explicitly driven by `get_spending_by_category(..., days)` / `get_spending_summary(..., days)` use that window. The **Dashboard** itself mixes period-based and full-history pieces—see the next subsection so demos don’t look “buggy.”
+
+##### ML Showcase Dashboard – what matches “Last N days” (code-accurate)
+
+| Widget | Uses sidebar **Last N days**? | Notes |
+|--------|--------------------------------|--------|
+| **Four headline metrics** (expenses, income, net, tx count, % vs prev period) | Yes | Rolling window from the user’s **max date** in the CSV. |
+| **Spending by Category** (donut) | Yes | Same window as the metrics. |
+| **Monthly Trend** (bar chart) | **No** | `get_monthly_trend(df, user_id, months=6)` — **last six calendar months** of the user’s **entire** history, not clipped to the sidebar. |
+| **Smart Recommendations** | **No** | `RecommendationService` gets the **full** synthetic dataframe. Rules (overspend vs monthly averages, subscriptions, frequency, etc.) use **all** of that user’s rows over time, independent of the sidebar. |
+
+So: the donut and KPIs tell a coherent “last N days” story; the monthly bars and rec cards are **longer-horizon** context.
+
+| Page | What it shows | ML / logic |
+|------|----------------|------------|
+| **Dashboard** | See table above: KPIs + category donut (period); monthly bars (6‑month full history); recommendation expanders (full-history rules) | `RecommendationService`, Plotly donut + bar. |
+| **Transactions** | Filterable table + summary stats for the **same last N days** | Pure pandas filters (not a separate model). |
+| **Analytics** | Horizontal bar: top categories; weekday bar; **daily** spending line over the period; **subcategory donut** for a **selected** category | Same period as sidebar for all of the above. |
+| **Insights** | **Anomaly** (VAE on category totals for the period), **Forecast** (ZICATT – next week vs “last N days” actual), **Classifier** text demo; footer **“Models Used on This Page”** info cards (VAE / ZICATT / DistilBERT, param counts) | Loads `AnomalyDetector`, `ZICATTInference`, `TransactionClassifierInference` from `models/`. If a model file is missing, that block shows a friendly message. |
+| **AI Assistant** | Chat **or** quick buttons: **Spending Summary**, **My Subscriptions**, **Spending Trend**, **Clear Chat**; second row: **This Month**, **By Category**, **Compare to Average** | Uses `FinancialAssistant(..., mode="showcase")`. **No single-day tools** (no “today” / “yesterday” in the tool list). Answers should use **periods** (last week, last month, last 90 days, “this month” as rolling window aligned with dashboard). Claude gets a **historical-data** system prompt: do not treat the dataset as “today’s live bank feed”; use tool numbers, avoid calendar month names in wording if we asked for relative phrasing. |
+| **Receipt Scanner** | Upload image → **Donut-only** structured output (items, total); optional **“Add to Transactions”** button | Runs **`app/parse_receipt_worker.py`** in a **subprocess** so PyTorch doesn’t crash Streamlit on some Mac setups. Post-processing filters junk line items and can replace a bad Donut total with the **sum of line items**. **“Add to Transactions”** shows a **demo** success only—it **does not** write into `transactions_full.csv`; real adds go through **My Account → Add Expense**. |
+
+**Sidebar “Components Status”:** Quick health check: classifier, anomaly, forecaster, recommender, assistant loaded or not. Useful in a live demo (“everything green”) or honest slide (“classifier missing until you run Notebook 03”).
+
+---
+
+### My Account – every page
+
+**Data:** `data/personal/my_transactions.csv` after login (`init_personal_data()` creates the folder/file if missing). Logical user id **`personal_user`** in code.
+
+**Login:** Credentials are **`CREDENTIALS`** in `app/personal_account.py` (demo pair also shown on the login screen). For anything beyond a class demo, replace with env-based auth or real sign-in.
+
+| Page | What it shows |
+|------|----------------|
+| **My Dashboard** | **All-time** totals (expenses, income, net, count); category **donut** (same hole style as showcase); **daily** spending line over full history; **10** recent rows. No “last 7 days” picker—lifetime for that CSV. |
+| **Add Expense** | Scan receipt (Claude Vision if API key, else Donut worker), Quick text + classifier, or manual form. Classifier suggests category when available. |
+| **My Transactions** | Filter / sort table + stats (same CSV). |
+| **My Assistant** | Chat + quick buttons (Summary, By Category, Trend, Clear; Today, Yesterday, This month, Total expense; 2 / 3 days ago). `FinancialAssistant(..., mode="personal")` + `FinancialDataManager(..., default_period_days=None)` so **“total expense” = all-time** like My Dashboard; day queries use **real calendar** dates. |
+| **My Insights** | Anomaly + forecast + **Test Classifier** text box. **Anomaly** here uses **all-time** category totals from your CSV (ML Showcase **Insights** instead uses the sidebar **Last N days** window). Forecast compares **this calendar week** vs predicted next week when enough weekly history exists. Same model files as showcase; personal data is often sparse (“need more weeks”). |
+
+---
+
+### Why numbers sometimes looked “wrong” before (and how we fixed the idea)
+
+- **Dashboard “Last N days”** uses: `date > user_max_date - timedelta(days=N)` (rolling window from the **latest date in that user’s rows**).
+- The assistant must use the **same rule** when it calls tools so totals and transaction counts **match** the Dashboard for the same user and period.
+- **“This month” in ML Showcase** is **not** the same as “calendar January vs February” in a static CSV; we treat it like the **same rolling window philosophy** as the rest of the showcase so it stays consistent with “last 30 days” style views.
+
+**Presentation line:** “One source of truth: the dataframe filter; the dashboard and the assistant both read totals the same way.”
+
+---
+
+### AI Assistant – two personalities (important for slides)
+
+| | **ML Showcase** | **My Account** |
+|---|-----------------|----------------|
+| **Mode** | `mode="showcase"` | `mode="personal"` |
+| **Day questions** | Redirect: historical data, use periods | Allowed: today / yesterday / N days ago |
+| **Tools exposed to Claude** | No `get_spending_for_date`, no `get_user_date_bounds` | Full tool set including per-day lookup |
+| **“Total spending” default** | Tied to showcase periods / last-month style summary | **All-time** to match My Dashboard |
+
+**Demo mode (no API key):** Rule-based `_chat_demo` answers; still respects `mode`.
+
+**API mode:** Claude must call tools; session **always forces the selected `user_id`** into tool calls so the assistant can’t accidentally query another user.
+
+---
+
+### Engineering “gotchas” worth one slide each
+
+1. **Showcase Dashboard vs sidebar:** KPIs and category pie follow **Last N days**; **Monthly Trend** and **Smart Recommendations** do **not**—say that clearly in a report or reviewers will think numbers are “inconsistent.”
+2. **PyTorch 2.6+ `torch.load`:** Checkpoints may need `weights_only=False` for trusted project checkpoints (classifier, anomaly, etc.).
+3. **Forecaster class name:** Production code uses **`ZICATTInference`**; older notebooks said `SpendingForecasterInference` – alias or rename kept imports consistent.
+4. **`st.dataframe` width:** Use `use_container_width=True` (not `width='stretch'`) on older Streamlit versions where `width` must be an int.
+5. **Quick chat buttons:** Appending a user message and `st.rerun()` is not enough – on the next run you must **generate the assistant reply** if the last message is still from the user (otherwise the button looks broken).
+6. **Receipt parsing:** **ML Showcase** = Donut-only via subprocess worker (macOS-safe). **My Account** = Claude Vision first, Donut worker as fallback; worker avoids loading PyTorch inside the main Streamlit process when Donut runs.
+7. **Receipt Scanner “Add to Transactions”:** Demo stub only on the showcase page; persistence is **My Account** manual/quick add or receipt flow.
+
+---
+
+### What to say in the final oral report (30-second story)
+
+1. **Data:** We generate realistic synthetic transactions, then optionally track real personal rows.
+2. **Models:** Donut for receipt OCR (showcase scanner + Donut fallback in personal) → DistilBERT categories → VAE anomalies → ZICATT forecast → **Claude** for chat (both modes) and optional **Claude Vision** for receipts in My Account only.
+3. **Product:** Streamlit ties it together – demo mode vs personal mode, same math for dashboard and assistant where it matters.
+4. **Honesty:** Synthetic data ends on a fixed date; showcase assistant should not pretend it knows “today” on the street – personal mode does.
+
+---
+
+### Files to name in documentation (handout checklist)
+
+- **App:** `app/streamlit_app.py`, `app/personal_account.py`, `app/parse_receipt_worker.py` (if used)
+- **Core logic:** `src/llm_assistant.py`, `src/receipt_parser.py`, `src/transaction_classifier.py`, `src/anomaly_detector.py`, `src/spending_forecaster.py`, `src/recommendation_engine.py`
+- **Data:** `data/synthetic/transactions_full.csv`, `data/personal/my_transactions.csv`, `data/processed/label_mappings.json`
+- **Models:** `models/classifier_model/`, `models/anomaly_model/`, `models/forecaster_model/`
+- **This summary + outcomes:** `src/my_learnings.md`, `src/OUTCOMES_REPORT.md`
+
+If you update the pipeline, update **OUTCOMES_REPORT.md** and bump the “numbers” examples in Notebook outcome sections only when you re-run training.

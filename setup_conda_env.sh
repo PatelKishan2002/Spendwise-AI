@@ -6,7 +6,7 @@
 #   ./setup_conda_env.sh
 # Then:
 #   conda activate spendwise311
-#   cd /path/to/spendwise-ai
+#   cd /path/to/SpendwiseAI
 #   streamlit run app/streamlit_app.py
 
 set -e
@@ -17,13 +17,9 @@ echo "=== Step 1: Create conda environment spendwise311 (Python 3.11) ==="
 conda create -n spendwise311 python=3.11 -y
 
 echo ""
-echo "=== Step 2: Install dependencies into spendwise311 ==="
+echo "=== Step 2: Install dependencies into spendwise311 (from requirements.txt) ==="
 conda run -n spendwise311 pip install --upgrade pip
-conda run -n spendwise311 pip install torch torchvision torchaudio
-conda run -n spendwise311 pip install "transformers>=4.30" datasets
-conda run -n spendwise311 pip install pandas numpy scikit-learn
-conda run -n spendwise311 pip install streamlit plotly matplotlib seaborn
-conda run -n spendwise311 pip install Pillow tqdm anthropic sentencepiece python-dotenv
+conda run -n spendwise311 pip install -r requirements.txt
 conda run -n spendwise311 pip install pytesseract 2>/dev/null || true
 
 echo ""

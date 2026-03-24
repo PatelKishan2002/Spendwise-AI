@@ -1,3 +1,7 @@
 # Large model files (exceed GitHub 100MB limit)
 models/classifier_model/model.pt
 *.pt
+
+# Environment / secrets (do not commit)
+.env
+.env.local
